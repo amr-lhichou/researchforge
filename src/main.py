@@ -28,7 +28,7 @@ response = client.chat.completions.create(
             "role": "user",
             "content": question
         }
-    ]
+    ],
     response_format = {"type"  :  "json_object"}
 )
 raw_output = response.choices[0].message.content

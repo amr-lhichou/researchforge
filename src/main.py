@@ -29,6 +29,7 @@ response = client.chat.completions.create(
             "content": question
         }
     ]
+    response_format = {"type"  :  "json_object"}
 )
 raw_output = response.choices[0].message.content
 result = ResearchAnswer.model_validate_json(raw_output)
@@ -36,7 +37,6 @@ result = ResearchAnswer.model_validate_json(raw_output)
 
 print("\nAnswer:")
 print(result.answer)
-
 print("\nKey points:")
 for point in result.key_points:
     print(f"- {point}")

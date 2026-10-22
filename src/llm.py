@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from groq import Groq
 
 from schemas import ResearchAnswer
-from tools import calculate
+from tools import calculate,search_documents
 
 
 load_dotenv()
@@ -33,6 +33,24 @@ calculator_tool = {
     }
 }
 
+search_documents_tool = {
+    "type": "function",
+    "function": {
+        "name": "search_documents",
+        "description": "Search the local knowledge base for relevant information.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to use in the local documents."
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}
+
 
 def generate_research_answer(question: str) -> ResearchAnswer:
 
@@ -40,8 +58,12 @@ def generate_research_answer(question: str) -> ResearchAnswer:
         {
             "role": "system",
             "content": (
-                "You are ResearchForge, a technical research assistant. "
-                "Use available tools when useful."
+            "You are ResearchForge, a technical research assistant. "
+            "You have two custom tools available: "
+            "calculate for mathematical expressions and "
+            "search_documents for searching the local knowledge base. "
+            "When the user asks about the knowledge base or local documents, "
+            "use search_documents. Do not use browser search."
             )
         },
         {
@@ -54,7 +76,8 @@ def generate_research_answer(question: str) -> ResearchAnswer:
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=messages,
-        tools=[calculator_tool],
+        tools=[calculator_tool,
+        search_documents_tool],
         tool_choice="auto"
     )
 
@@ -78,8 +101,11 @@ def generate_research_answer(question: str) -> ResearchAnswer:
                 tool_result = calculate(
                     function_args["expression"]
                 )
+
+            elif function_name == "search_documents":
+                tool_result = search_documents(function_args["query"])
             else:
-                tool_result = "Unknown tool"
+                tool_result = f"Unknown tool:{function_name}"
 
             print("Tool result:", tool_result)
 
@@ -97,9 +123,13 @@ def generate_research_answer(question: str) -> ResearchAnswer:
         {
             "role": "system",
             "content": (
-                "Return the final answer as JSON with exactly these fields: "
-                "'answer' as a string and "
-                "'key_points' as a list of strings."
+            "The tool results are already available above. "
+            "Do not call any more tools. "
+            "Do not use browser search. "
+            "Using only the information already in the conversation, "
+            "return the final answer as JSON with exactly these fields: "
+            "'answer' as a string and "
+            "'key_points' as a list of strings."
             )
         }
     )

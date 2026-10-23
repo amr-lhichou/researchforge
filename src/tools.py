@@ -9,8 +9,10 @@ import numpy as np
 embedding_model = SentenceTransformer(
         "sentence-transformers/all-MiniLM-L6-v2"
 )
-
-client = chromadb.Client()
+CHROMA_PATH = Path(__file__).parent.parent / "chroma_db"
+client = chromadb.PersistentClient(
+    path=str(CHROMA_PATH)
+)
 collection = client.get_or_create_collection(
     name="researchforge"
 )

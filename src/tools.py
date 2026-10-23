@@ -1,3 +1,4 @@
+import chromadb
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
@@ -9,6 +10,57 @@ embedding_model = SentenceTransformer(
         "sentence-transformers/all-MiniLM-L6-v2"
 )
 
+client = chromadb.Client()
+collection = client.get_or_create_collection(
+    name="researchforge"
+)
+
+
+
+def chunk_text(text:str,chunk_size: int = 50)-> list[str]:
+    words = text.split()
+
+    chunks = []
+    for i in range(0,len(words),chunk_size):
+        chunk = words[i:i+chunk_size]
+        chunks.append(" ".join(chunk))
+    return chunks
+
+
+
+
+
+
+
+def index_documents():
+    data_path = Path(__file__).parent.parent/"data"/"knowledge.txt"
+    text = data_path.read_text(encoding="utf-8")
+
+    chunks = chunk_text(text)
+    embeddings = embedding_model.encode(chunks)
+
+    ids = [
+        f"chunk_{i}"
+        for i in range(len(chunks))
+    ]
+    metadatas = [
+        {
+            "source":"knowledge.txt",
+            "chunk_id": i
+        }
+        for i in range(len(chunks))
+    ]
+    collection.add(
+        ids=ids,
+        documents=chunks,
+        embeddings=embeddings.tolist(),
+        metadatas=metadatas
+    )
+
+
+
+
+
 def calculate(expression: str) -> str:
     try:
         result = eval(expression)
@@ -19,18 +71,7 @@ def calculate(expression: str) -> str:
 
 
 
-def chunk_text(text:str,chunk_size: int = 500)-> list[str]:
-    words = text.split()
-
-    chunks = []
-    for i in range(0,len(text),chunk_size):
-        chunk = words[i:i+chunk_size]
-        chunks.append(" ".join(chunk))
-    return chunks
-
-
-
-def build_index():
+"""def build_index():
     data_path = Path(__file__).parent.parent/"data"/"knowledge.txt"
     text = data_path.read_text(encoding="utf-8")
 
@@ -39,7 +80,7 @@ def build_index():
 
     return chunks, embeddings
 
-DOCUMENT_CHUNKS, DOUCMENT_EMBEDDINGS = build_index()
+DOCUMENT_CHUNKS, DOUCMENT_EMBEDDINGS = build_index()"""
 
 
 
@@ -50,25 +91,15 @@ def cosine_similarity(a,b):
 
 def search_documents(query:str,top_k,int=3) -> str:
     
-    query_enbedding = embedding_model.encode(query)
-    scored_chunks = []
-    for chunk, chunk_embedding in zip(
-        DOCUMENT_CHUNKS,
-        DOUCMENT_EMBEDDINGS
-    ):
-        score = cosine_similarity(
-            query_enbedding,
-            chunk_embedding
-        )
-        scored_chunks.append((score,chunk))
-    scored_chunks.sort(
-        key = lambda x: x[0],
-        reverse=True
-    )
-    top_chunks = scored_chunks[:top_k]
-    return "\n\n".join(
-        chunk for score ,chunk in top_chunks
+    query_embedding = embedding_model.encode(query)
+    results = collection.query(
+        query_embeddings=[query_embedding.tolist()],
+        n_results=top_k
     )
 
+    documents = results["documents"][0]
+
+    return "\n\n".join(documents)
+    
 
 

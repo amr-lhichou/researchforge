@@ -44,6 +44,10 @@ search_documents_tool = {
                 "query": {
                     "type": "string",
                     "description": "The search query to use in the local documents."
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "Number of relevant chunks to retrieve."
                 }
             },
             "required": ["query"]
@@ -54,92 +58,45 @@ search_documents_tool = {
 
 def generate_research_answer(question: str) -> ResearchAnswer:
 
+    # 1. Retrieve relevant chunks from the knowledge base
+    retrieved_context = search_documents(
+        question,
+        top_k=3
+    )
+
+    # 2. Build the prompt using the retrieved context
     messages = [
         {
             "role": "system",
             "content": (
-            "You are ResearchForge, a technical research assistant. "
-            "You have two custom tools available: "
-            "calculate for mathematical expressions and "
-            "search_documents for searching the local knowledge base. "
-            "When the user asks about the knowledge base or local documents, "
-            "use search_documents. Do not use browser search."
+                "You are ResearchForge, a technical research assistant. "
+                "Answer strictly using the retrieved context provided by the user. "
+                "Do not add information from your own general knowledge. "
+                "If the retrieved context is insufficient, say so. "
+                "Return JSON with exactly these fields: "
+                "'answer' as a string and "
+                "'key_points' as a list of strings."
             )
         },
         {
             "role": "user",
-            "content": question
+            "content": (
+                f"Question:\n{question}\n\n"
+                f"Retrieved context:\n{retrieved_context}"
+            )
         }
     ]
 
-    # First call: let the model decide whether it needs a tool
+    # 3. Generate the grounded answer
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=messages,
-        tools=[calculator_tool,
-        search_documents_tool],
-        tool_choice="auto"
-    )
-
-    response_message = response.choices[0].message
-
-    if response_message.tool_calls:
-
-        print("Tool call requested!")
-
-        messages.append(response_message)
-
-        for tool_call in response_message.tool_calls:
-
-            function_name = tool_call.function.name
-
-            function_args = json.loads(
-                tool_call.function.arguments
-            )
-
-            if function_name == "calculate":
-                tool_result = calculate(
-                    function_args["expression"]
-                )
-
-            elif function_name == "search_documents":
-                tool_result = search_documents(function_args["query"])
-            else:
-                tool_result = f"Unknown tool:{function_name}"
-
-            print("Tool result:", tool_result)
-
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "name": function_name,
-                    "content": tool_result
-                }
-            )
-
-    # Ask the model for the final structured response
-    messages.append(
-        {
-            "role": "system",
-            "content": (
-            "The tool results are already available above. "
-            "Do not call any more tools. "
-            "Do not use browser search. "
-            "Using only the information already in the conversation, "
-            "return the final answer as JSON with exactly these fields: "
-            "'answer' as a string and "
-            "'key_points' as a list of strings."
-            )
-        }
-    )
-
-    final_response = client.chat.completions.create(
-        model="openai/gpt-oss-120b",
-        messages=messages,
+        temperature=0.1,
         response_format={"type": "json_object"}
     )
 
-    raw_output = final_response.choices[0].message.content
+    # 4. Extract the JSON response
+    raw_output = response.choices[0].message.content
 
+    # 5. Validate it with Pydantic
     return ResearchAnswer.model_validate_json(raw_output)

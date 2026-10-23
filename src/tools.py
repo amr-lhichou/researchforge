@@ -1,5 +1,5 @@
 from pathlib import Path
-from sentence-transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 
 
 import numpy as np 
@@ -17,7 +17,7 @@ def calculate(expression: str) -> str:
         return f"Error: {e}"
 
 
-        
+
 
 def chunk_text(text:str,chunk_size: int = 500)-> list[str]:
     words = text.split()
@@ -30,20 +30,32 @@ def chunk_text(text:str,chunk_size: int = 500)-> list[str]:
 
 
 
+def build_index():
+    data_path = Path(__file__).parent.parent/"data"/"knowledge.txt"
+    text = data_path.read_text(encoding="utf-8")
+
+    chunks = chunk_text(text)
+    embeddings = embedding_model.encode(chunks)
+
+    return chunks, embeddings
+
+DOCUMENT_CHUNKS, DOUCMENT_EMBEDDINGS = build_index()
+
+
+
 
 def cosine_similarity(a,b):
     return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
 
 
 def search_documents(query:str,top_k,int=3) -> str:
-    data_path = Path(__file__).parent.parent/"data"/"knowledge.txt"
-    text = data_path.read_text(encoding ="utf_8")
-    chunks = chunk_text(text)
-
-    chunk_embeddings = embedding_model.encode(chunks)
+    
     query_enbedding = embedding_model.encode(query)
     scored_chunks = []
-    for chunk, chunk_embedding in zip(chunks,chunk_embeddings):
+    for chunk, chunk_embedding in zip(
+        DOCUMENT_CHUNKS,
+        DOUCMENT_EMBEDDINGS
+    ):
         score = cosine_similarity(
             query_enbedding,
             chunk_embedding

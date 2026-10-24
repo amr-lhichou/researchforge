@@ -1,4 +1,5 @@
 import chromadb
+import hashlib
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
@@ -30,18 +31,63 @@ def chunk_text(text:str,chunk_size: int = 50,overlap: int = 10)-> list[str]:
             chunks.append(" ".join(chunk))
     return chunks
 
+def compute_file_hash(file_path:Path) -> str:
+    content = file_path.read_bytes()
 
-
+    return hashlib.sha256(content).hexdigest()
 
 
 
 
 def index_documents():
     data_dir = Path(__file__).parent.parent/"data"
+
+    current_files = {
+        file_path.name
+        for file_path in data_dir.glob("*.txt")
+    }
+
+    stored = collection.get(
+        include=["metadatas"]
+    )
+
+    stored_sources = {
+        metadata["source"]
+        for metadata in stored["metadatas"]
+    }
+
+    deleted_sources = stored_sources - current_files
+
+    for source in deleted_sources:
+        collection.delete(
+            where={"source":source}
+        )
+        print(f"removed deleted file:{source}")
     for file_path in data_dir.glob("*.txt"):
+        file_hash = compute_file_hash(file_path)
+        
+
+        existing = collection.get(
+            where={
+                "$and": [
+                    {"source":file_path.name},
+                    {"file_hash":file_hash}
+                ]
+            }
+        )
+        if existing["ids"]:
+            print(f"skipping unchanged files:{file_path.name}")
+            continue
+        collection.delete(
+            where={"source":file_path.name}
+        )
+
+
+
         text = file_path.read_text(encoding="utf-8")
         chunks = chunk_text(text)
         embeddings = embedding_model.encode(chunks)
+        file_hash = compute_file_hash(file_path)
 
         ids = [
             f"{file_path.stem}_chunk_{i}"
@@ -50,16 +96,18 @@ def index_documents():
         metadatas = [
             {
                 "source":file_path.name,
-                "chunk_id": i
+                "chunk_id": i,
+                "file_hash":file_hash
             }
             for i in range(len(chunks))
         ]
-        collection.add(
+        collection.upsert(
             ids=ids,
             documents=chunks,
             embeddings=embeddings.tolist(),
             metadatas=metadatas
         )
+        print(f"Indexed:{file_path.name}")
 
 
 

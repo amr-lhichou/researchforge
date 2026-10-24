@@ -1,0 +1,5 @@
+An AI agent can use a language model to decide which actions or tools should be used to complete a task.
+
+Tools may include calculators, databases, search systems, or external APIs.
+
+Agentic systems often require orchestration to manage multiple steps, tool calls, and state.

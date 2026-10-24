@@ -1,0 +1,5 @@
+Embeddings are numerical vector representations of data such as text.
+
+Texts with similar meanings tend to have embeddings that are close to each other in vector space.
+
+Embedding models are commonly used for semantic search and retrieval.

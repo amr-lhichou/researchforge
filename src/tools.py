@@ -19,13 +19,15 @@ collection = client.get_or_create_collection(
 
 
 
-def chunk_text(text:str,chunk_size: int = 50)-> list[str]:
+def chunk_text(text:str,chunk_size: int = 50,overlap: int = 10)-> list[str]:
     words = text.split()
 
     chunks = []
-    for i in range(0,len(words),chunk_size):
+    step = chunk_size - overlap
+    for i in range(0,len(words),step):
         chunk = words[i:i+chunk_size]
-        chunks.append(" ".join(chunk))
+        if chunk:
+            chunks.append(" ".join(chunk))
     return chunks
 
 
@@ -35,29 +37,29 @@ def chunk_text(text:str,chunk_size: int = 50)-> list[str]:
 
 
 def index_documents():
-    data_path = Path(__file__).parent.parent/"data"/"knowledge.txt"
-    text = data_path.read_text(encoding="utf-8")
+    data_dir = Path(__file__).parent.parent/"data"
+    for file_path in data_dir.glob("*.txt"):
+        text = file_path.read_text(encoding="utf-8")
+        chunks = chunk_text(text)
+        embeddings = embedding_model.encode(chunks)
 
-    chunks = chunk_text(text)
-    embeddings = embedding_model.encode(chunks)
-
-    ids = [
-        f"chunk_{i}"
-        for i in range(len(chunks))
-    ]
-    metadatas = [
-        {
-            "source":"knowledge.txt",
-            "chunk_id": i
-        }
-        for i in range(len(chunks))
-    ]
-    collection.add(
-        ids=ids,
-        documents=chunks,
-        embeddings=embeddings.tolist(),
-        metadatas=metadatas
-    )
+        ids = [
+            f"{file_path.stem}_chunk_{i}"
+            for i in range(len(chunks))
+        ]
+        metadatas = [
+            {
+                "source":file_path.name,
+                "chunk_id": i
+            }
+            for i in range(len(chunks))
+        ]
+        collection.add(
+            ids=ids,
+            documents=chunks,
+            embeddings=embeddings.tolist(),
+            metadatas=metadatas
+        )
 
 
 

@@ -11,3 +11,7 @@ print(result.answer)
 print("\nKey points:")
 for point in result.key_points:
     print(f"- {point}")
+
+print("\nSources:")
+for source in result.sources:
+    print(f"-{source}")

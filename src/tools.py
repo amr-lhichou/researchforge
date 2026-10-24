@@ -98,10 +98,19 @@ def search_documents(query:str,top_k,int=3) -> str:
         query_embeddings=[query_embedding.tolist()],
         n_results=top_k
     )
+    retrieved_chunks = []
 
     documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
 
-    return "\n\n".join(documents)
+    for document ,metadata in zip(documents,metadatas):
+        retrieved_chunks.append(
+            f"Source: {metadata['source']}\n"
+            f"Chunk ID: {metadata['chunk_id']}\n"
+            f"Content: {document}"
+        )
+
+    return "\n\n".join(retrieved_chunks)
     
 
 

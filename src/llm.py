@@ -69,13 +69,16 @@ def generate_research_answer(question: str) -> ResearchAnswer:
         {
             "role": "system",
             "content": (
-                "You are ResearchForge, a technical research assistant. "
-                "Answer strictly using the retrieved context provided by the user. "
-                "Do not add information from your own general knowledge. "
-                "If the retrieved context is insufficient, say so. "
-                "Return JSON with exactly these fields: "
-                "'answer' as a string and "
-                "'key_points' as a list of strings."
+                    "You are ResearchForge, a technical research assistant. "
+                    "Answer strictly using the retrieved context provided by the user. "
+                    "Do not add information from your own general knowledge. "
+                    "If the retrieved context is insufficient, say so. "
+                    "Return JSON with exactly these fields: "
+                    "'answer' as a string, "
+                    "'key_points' as a list of strings, and "
+                    "'sources' as a list of strings. "
+                    "The sources must come from the source and chunk information "
+                    "present in the retrieved context."
             )
         },
         {
